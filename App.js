@@ -7,8 +7,11 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Pressable,
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AntDesign } from "@expo/vector-icons";
 import { theme } from "./colors";
 
 const STORAGE_KEY = "@toDos";
@@ -84,7 +87,14 @@ export default function App() {
     setText("");
   };
 
-  const deleteTodo = async (key) => {
+  const deleteTodo = (key) => {
+    Alert.alert(toDos[key].text, "문장을 삭제할까요?", [
+      { text: "YES", onPress: () => deleteAction(key) },
+      { text: "NO", onPress: () => console.log("cancel") },
+    ]);
+  };
+
+  const deleteAction = async (key) => {
     const newTodos = { ...toDos };
     delete newTodos[key];
     setToDos(newTodos);
@@ -125,8 +135,17 @@ export default function App() {
 
   const addSearch = (key) => {
     text = searchList[key].item;
-    addTodo();
+
+    Alert.alert(text, "문장을 등록할까요?", [
+      { text: "YES", onPress: () => addTodo() },
+      { text: "NO", onPress: () => console.log("cancel") },
+    ]);
   };
+
+  // 추가할 기능
+  // 등록한 문장 수정하도록
+  // 완료 버튼 추가
+  // 미니 테스트 기능
 
   return (
     <View style={styles.container}>
@@ -180,7 +199,7 @@ export default function App() {
                 hitSlop={{ top: 32, bottom: 32, left: 32, right: 32 }}
                 onPress={() => deleteTodo(key)}
               >
-                <Text style={styles.toDoDel}>DEL</Text>
+                <AntDesign name="delete" size={25} color="white" />
               </TouchableOpacity>
             </View>
           ))}
@@ -189,15 +208,14 @@ export default function App() {
         <ScrollView>
           {Object.keys(searchList).map((key) =>
             searchList[key].itemStatus ? (
-              <View style={styles.bsEngList} key={key}>
+              <Pressable
+                onLongPress={() => addSearch(key)}
+                delayLongPress="100"
+                style={styles.bsEngList}
+                key={key}
+              >
                 <Text style={styles.bsEngText}>{searchList[key].item}</Text>
-                <TouchableOpacity
-                  hitSlop={{ top: 32, bottom: 32, left: 32, right: 32 }}
-                  onPress={() => addSearch(key)}
-                >
-                  <Text style={styles.searchAdd}>ADD</Text>
-                </TouchableOpacity>
-              </View>
+              </Pressable>
             ) : null
           )}
         </ScrollView>
@@ -258,20 +276,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#3D155F",
     marginBottom: 10,
     paddingHorizontal: 30,
-    paddingVertical: 10,
+    paddingVertical: 15,
     borderRadius: 15,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
   },
   bsEngText: {
     color: "white",
     fontSize: 18,
     fontWeight: "500",
-  },
-  searchAdd: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "white",
   },
 });
