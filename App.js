@@ -16,25 +16,30 @@ const STORAGE_KEY = "@toDos";
 export default function App() {
   // 상단 메인 메뉴 상태 관리
   const [myPractice, setmyPractice] = useState(true);
-  const searchMode = () => setmyPractice(false);
   const practiceMode = () => setmyPractice(true);
+  const searchMode = () => {
+    setmyPractice(false);
+    searchAction(text);
+  };
 
   // 텍스트 상자 입력 내용 관리
-  const [text, setText] = useState("");
+  var [text, setText] = useState("");
 
   // 검색어 입력 시 실시간 상태 변동을 통해 문장 리스트 다시 랜더링
   const [searchList, setsearchList] = useState({
-    1: { item: "a", itemStatus: true },
-    2: { item: "b", itemStatus: true },
-    3: { item: "c", itemStatus: true },
+    1: { item: "hello world", itemStatus: true },
+    2: { item: "i am a student", itemStatus: true },
+    3: { item: "i am a boy", itemStatus: true },
   });
 
   // 텍스트 입력 상태 관리
   const onChangeText = (payload) => {
     setText(payload);
 
+    // 검색 모드에서는 텍스트 입력마다 검색
     if (!myPractice) {
-      searchItem(payload);
+      //텍스트 입력이 변할 때마다 리스트를 처음부터 다시 검색
+      searchAction(payload);
     }
   };
 
@@ -59,27 +64,22 @@ export default function App() {
   const loadTodos = async () => {
     try {
       const loadValues = await AsyncStorage.getItem(STORAGE_KEY);
-
       return loadValues != null ? setToDos(JSON.parse(loadValues)) : null;
-    } catch (e) {
-      // error
-    }
+    } catch (e) {}
   };
 
   // 목록 추가
   const addTodo = async () => {
     // 텍스트 입력이 없는 경우 아무것도 하지 않음
-
     if (text === "") {
       return;
     }
     // 텍스트가 있는 경우 목록 추가 -> object 병합 방식
     const newToDos = {
       ...toDos,
-      [Date.now()]: { text, myPractice },
+      [Date.now()]: { text, myPractice: true },
     };
     setToDos(newToDos);
-    console.log(newToDos);
     await saveTodos(newToDos);
     setText("");
   };
@@ -91,13 +91,22 @@ export default function App() {
     await saveTodos(newTodos);
   };
 
+  const searchAction = (value) => {
+    initialSearchItem();
+    searchItem(value);
+  };
+
+  // 검색 화면에서 문장 목록 모두 나오도록 초기화
+  const initialSearchItem = () => {
+    Object.keys(searchList).map((key) => {
+      searchList[key].itemStatus = true;
+    });
+  };
+
   //주어진 문장 중에 검색하기
   const searchItem = (searchText = text) => {
     //검색어를 모두 지운 경우에는 모든 리스트가 나오도록 변경
     if (searchText === "") {
-      Object.keys(searchList).map((key) => {
-        searchList[key].itemStatus = true;
-      });
       return;
     }
 
@@ -105,12 +114,18 @@ export default function App() {
     // 검색어가 포함되지 않은 문장은 '상태를 false'로 변경하여 리스트에서 삭제
     // 텍스트 비교 알고리즘
     // 텍스트 비교하여 key값 추출 후, 해당 key의 object만 비활성화
-    if (searchText === "z") {
+    if (searchText.length > 0) {
       Object.keys(searchList).map((key) => {
-        searchList[key].itemStatus = false;
+        var comparesentence = String(searchList[key].item);
+        if (comparesentence.indexOf(searchText) < 0)
+          searchList[key].itemStatus = false;
       });
     }
-    //검색 함수
+  };
+
+  const addSearch = (key) => {
+    text = searchList[key].item;
+    addTodo();
   };
 
   return (
@@ -123,7 +138,7 @@ export default function App() {
           <Text
             style={{
               ...styles.btnText,
-              color: myPractice ? "white" : theme.grey,
+              color: myPractice ? "#FFD662" : theme.grey,
             }}
           >
             Practice
@@ -133,7 +148,7 @@ export default function App() {
           <Text
             style={{
               ...styles.btnText,
-              color: !myPractice ? "white" : theme.grey,
+              color: !myPractice ? "#DF678C" : theme.grey,
             }}
           >
             Search
@@ -145,7 +160,6 @@ export default function App() {
       <View>
         <TextInput
           returnKeyType="done"
-          multiline
           onChangeText={onChangeText}
           value={text}
           onSubmitEditing={myPractice ? addTodo : searchItem}
@@ -156,23 +170,20 @@ export default function App() {
       </View>
 
       {/* 문장들 나오는 섹션 */}
-
+      {/* Practice 모드와 Seearch 모드에서 다른 리스트 나오도록 설정 */}
       {myPractice ? (
         <ScrollView>
-          {/* Practice 모드와 Seearch 모드에서 다른 리스트 나오도록 설정 */}
-          {Object.keys(toDos).map((key) =>
-            toDos[key].myPractice === myPractice ? (
-              <View style={styles.toDo} key={key}>
-                <Text style={styles.toDoText}>{toDos[key].text}</Text>
-                <TouchableOpacity
-                  hitSlop={{ top: 32, bottom: 32, left: 32, right: 32 }}
-                  onPress={() => deleteTodo(key)}
-                >
-                  <Text style={styles.toDoDel}>DEL</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null
-          )}
+          {Object.keys(toDos).map((key) => (
+            <View style={styles.toDo} key={key}>
+              <Text style={styles.toDoText}>{toDos[key].text}</Text>
+              <TouchableOpacity
+                hitSlop={{ top: 32, bottom: 32, left: 32, right: 32 }}
+                onPress={() => deleteTodo(key)}
+              >
+                <Text style={styles.toDoDel}>DEL</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </ScrollView>
       ) : (
         <ScrollView>
@@ -180,6 +191,12 @@ export default function App() {
             searchList[key].itemStatus ? (
               <View style={styles.bsEngList} key={key}>
                 <Text style={styles.bsEngText}>{searchList[key].item}</Text>
+                <TouchableOpacity
+                  hitSlop={{ top: 32, bottom: 32, left: 32, right: 32 }}
+                  onPress={() => addSearch(key)}
+                >
+                  <Text style={styles.searchAdd}>ADD</Text>
+                </TouchableOpacity>
               </View>
             ) : null
           )}
@@ -211,10 +228,34 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     borderRadius: 30,
     marginVertical: 20,
-    fontSize: 18,
+    fontSize: 14,
   },
+
+  // 연습화면에서 스크롤 뷰
   toDo: {
-    backgroundColor: theme.todoBg,
+    backgroundColor: "#00539C",
+    marginBottom: 10,
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  toDoText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "500",
+  },
+  toDoDel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
+  },
+
+  // 검색화면에서 스크롤 뷰
+  bsEngList: {
+    backgroundColor: "#3D155F",
     marginBottom: 10,
     paddingHorizontal: 30,
     paddingVertical: 10,
@@ -223,24 +264,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  toDoText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  toDoDel: {
-    fontSize: 30,
-  },
-  bsEngList: {
-    backgroundColor: "red",
-    marginBottom: 10,
-    paddingHorizontal: 30,
-    paddingVertical: 10,
-    borderRadius: 15,
-  },
   bsEngText: {
-    color: "blue",
-    fontSize: 16,
+    color: "white",
+    fontSize: 18,
     fontWeight: "500",
+  },
+  searchAdd: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
   },
 });
