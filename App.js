@@ -22,6 +22,7 @@ export default function App() {
   // 텍스트 상자 입력 내용 관리
   const [text, setText] = useState("");
 
+  // 검색어 입력 시 실시간 상태 변동을 통해 문장 리스트 다시 랜더링
   const [searchList, setsearchList] = useState({
     1: { item: "a", itemStatus: true },
     2: { item: "b", itemStatus: true },
@@ -102,6 +103,8 @@ export default function App() {
 
     // 검색어가 있는 경우에 해당 검색어를 포함하는 문장만 View에 보여준다.
     // 검색어가 포함되지 않은 문장은 '상태를 false'로 변경하여 리스트에서 삭제
+    // 텍스트 비교 알고리즘
+    // 텍스트 비교하여 key값 추출 후, 해당 key의 object만 비활성화
     if (searchText === "z") {
       Object.keys(searchList).map((key) => {
         searchList[key].itemStatus = false;
