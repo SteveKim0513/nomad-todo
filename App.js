@@ -1,4 +1,6 @@
 import { StatusBar } from "expo-status-bar";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AntDesign } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
@@ -10,34 +12,33 @@ import {
   Pressable,
   Alert,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AntDesign } from "@expo/vector-icons";
 import { theme } from "./colors";
+import { sentenceList } from "./sentence";
 
-const STORAGE_KEY = "@toDos";
+const STORAGE_KEY = "@exerList";
 
 export default function App() {
-  // 상단 메인 메뉴 상태 관리
+  // --------------------------- 상단 메인 메뉴 상태 관리 --------------------------- //
   const [myPractice, setmyPractice] = useState(true);
-  const practiceMode = () => setmyPractice(true);
+  const practiceMode = () => {
+    setmyPractice(true);
+    setTextEng("");
+    setTextKor("");
+  };
   const searchMode = () => {
     setmyPractice(false);
-    searchAction(text);
+    setTextEng("");
+    setTextKor("");
   };
 
-  // 텍스트 상자 입력 내용 관리
-  var [text, setText] = useState("");
-
-  // 검색어 입력 시 실시간 상태 변동을 통해 문장 리스트 다시 랜더링
-  const [searchList, setsearchList] = useState({
-    1: { item: "hello world", itemStatus: true },
-    2: { item: "i am a student", itemStatus: true },
-    3: { item: "i am a boy", itemStatus: true },
-  });
+  // --------------------------- 텍스 입력 상자 관리 --------------------------- //
+  var [textEng, setTextEng] = useState("");
+  var [textKor, setTextKor] = useState("");
 
   // 텍스트 입력 상태 관리
   const onChangeText = (payload) => {
-    setText(payload);
+    // 입력된 텍스트 값 persist
+    setTextEng(payload);
 
     // 검색 모드에서는 텍스트 입력마다 검색
     if (!myPractice) {
@@ -46,15 +47,21 @@ export default function App() {
     }
   };
 
-  // Study "hashmap" -> {}
-  const [toDos, setToDos] = useState({});
+  // --------------------------- 목록 관리 --------------------------- //
+  const [exerList, setexerList] = useState({});
 
-  useEffect(() => {
-    loadTodos();
-  });
+  // 목록 불러오기
+  const loadExerList = async () => {
+    try {
+      const loadValues = await AsyncStorage.getItem(STORAGE_KEY);
+      return loadValues != null ? setexerList(JSON.parse(loadValues)) : null;
+    } catch (e) {
+      // error
+    }
+  };
 
   // 목록 폰에 저장
-  const saveTodos = async (toSave) => {
+  const saveExerList = async (toSave) => {
     try {
       const saveValue = JSON.stringify(toSave);
       await AsyncStorage.setItem(STORAGE_KEY, saveValue);
@@ -62,82 +69,84 @@ export default function App() {
       // error
     }
   };
-
-  // 목록 불러오기
-  const loadTodos = async () => {
-    try {
-      const loadValues = await AsyncStorage.getItem(STORAGE_KEY);
-      return loadValues != null ? setToDos(JSON.parse(loadValues)) : null;
-    } catch (e) {}
-  };
+  useEffect(() => {
+    loadExerList();
+  });
 
   // 목록 추가
-  const addTodo = async () => {
+  const addExerList = async () => {
     // 텍스트 입력이 없는 경우 아무것도 하지 않음
-    if (text === "") {
+    if (textEng === "") {
       return;
     }
     // 텍스트가 있는 경우 목록 추가 -> object 병합 방식
-    const newToDos = {
-      ...toDos,
-      [Date.now()]: { text, myPractice: true },
+    const newExerList = {
+      ...exerList,
+      [Date.now()]: { textEng, textKor, myPractice },
     };
-    setToDos(newToDos);
-    await saveTodos(newToDos);
-    setText("");
+
+    setexerList(newExerList);
+    await saveExerList(newExerList);
+    setTextEng("");
+    setTextKor("");
   };
 
-  const deleteTodo = (key) => {
-    Alert.alert(toDos[key].text, "문장을 삭제할까요?", [
-      { text: "YES", onPress: () => deleteAction(key) },
+  // 목록 삭제 -> 팝업을 통해 삭제 확인
+  const deleteExerList = (key) => {
+    Alert.alert(exerList[key].textEng, "문장을 삭제할까요?", [
+      { text: "YES", onPress: () => deleteItem(key) },
       { text: "NO", onPress: () => console.log("cancel") },
     ]);
   };
 
-  const deleteAction = async (key) => {
-    const newTodos = { ...toDos };
-    delete newTodos[key];
-    setToDos(newTodos);
-    await saveTodos(newTodos);
+  // 삭제 수행 함수
+  const deleteItem = async (key) => {
+    const newExerList = { ...exerList };
+    delete newExerList[key];
+    setexerList(newExerList);
+    await saveExerList(newExerList);
   };
 
+  // --------------------------- 검색 관리 --------------------------- //
+
+  // 검색 대상 초기화
+  const initialSearchItem = () => {
+    Object.keys(sentenceList).map((key) => {
+      sentenceList[key].searchStatus = true;
+    });
+  };
+
+  // 검색 실행하기
   const searchAction = (value) => {
     initialSearchItem();
     searchItem(value);
   };
 
-  // 검색 화면에서 문장 목록 모두 나오도록 초기화
-  const initialSearchItem = () => {
-    Object.keys(searchList).map((key) => {
-      searchList[key].itemStatus = true;
-    });
-  };
-
   //주어진 문장 중에 검색하기
-  const searchItem = (searchText = text) => {
-    //검색어를 모두 지운 경우에는 모든 리스트가 나오도록 변경
+  const searchItem = (searchText = textEng) => {
     if (searchText === "") {
       return;
     }
 
     // 검색어가 있는 경우에 해당 검색어를 포함하는 문장만 View에 보여준다.
     // 검색어가 포함되지 않은 문장은 '상태를 false'로 변경하여 리스트에서 삭제
-    // 텍스트 비교 알고리즘
-    // 텍스트 비교하여 key값 추출 후, 해당 key의 object만 비활성화
+    // 텍스트 비교 알고리즘(텍스트 비교하여 key값 추출 후, 해당 key의 object만 비활성화)
     if (searchText.length > 0) {
-      Object.keys(searchList).map((key) => {
-        var comparesentence = String(searchList[key].item);
+      Object.keys(sentenceList).map((key) => {
+        var comparesentence = String(sentenceList[key].eng);
         if (comparesentence.indexOf(searchText) < 0)
-          searchList[key].itemStatus = false;
+          sentenceList[key].searchStatus = false;
       });
     }
   };
 
+  // 검색화면의 문장을 연습문장으로 등록하기
   const addSearch = (key) => {
-    text = searchList[key].item;
+    textEng = sentenceList[key].eng;
+    textKor = sentenceList[key].kor;
 
-    Alert.alert(text, "문장을 등록할까요?", [
-      { text: "YES", onPress: () => addTodo() },
+    Alert.alert(textEng, "문장을 등록할까요?", [
+      { text: "YES", onPress: () => addExerList() },
       { text: "NO", onPress: () => console.log("cancel") },
     ]);
   };
@@ -146,6 +155,14 @@ export default function App() {
   // 등록한 문장 수정하도록
   // 완료 버튼 추가
   // 미니 테스트 기능
+
+  const clickList = () => {
+    console.log("click list");
+  };
+
+  const clearText = () => {
+    console.log("click");
+  };
 
   return (
     <View style={styles.container}>
@@ -180,8 +197,9 @@ export default function App() {
         <TextInput
           returnKeyType="done"
           onChangeText={onChangeText}
-          value={text}
-          onSubmitEditing={myPractice ? addTodo : searchItem}
+          onFocus={clearText}
+          value={textEng}
+          onSubmitEditing={myPractice ? addExerList : searchItem}
           placeholderTextColor="#AF7AC5"
           placeholder={myPractice ? "Write the sentence!" : "Search"}
           style={styles.input}
@@ -192,12 +210,14 @@ export default function App() {
       {/* Practice 모드와 Seearch 모드에서 다른 리스트 나오도록 설정 */}
       {myPractice ? (
         <ScrollView>
-          {Object.keys(toDos).map((key) => (
+          {Object.keys(exerList).map((key) => (
             <View style={styles.toDo} key={key}>
-              <Text style={styles.toDoText}>{toDos[key].text}</Text>
+              <Pressable onPress={() => clickList()}>
+                <Text style={styles.toDoText}>{exerList[key].textEng}</Text>
+              </Pressable>
               <TouchableOpacity
                 hitSlop={{ top: 32, bottom: 32, left: 32, right: 32 }}
-                onPress={() => deleteTodo(key)}
+                onPress={() => deleteExerList(key)}
               >
                 <AntDesign name="delete" size={25} color="white" />
               </TouchableOpacity>
@@ -206,15 +226,15 @@ export default function App() {
         </ScrollView>
       ) : (
         <ScrollView>
-          {Object.keys(searchList).map((key) =>
-            searchList[key].itemStatus ? (
+          {Object.keys(sentenceList).map((key) =>
+            sentenceList[key].searchStatus ? (
               <Pressable
                 onLongPress={() => addSearch(key)}
                 delayLongPress="100"
                 style={styles.bsEngList}
                 key={key}
               >
-                <Text style={styles.bsEngText}>{searchList[key].item}</Text>
+                <Text style={styles.bsEngText}>{sentenceList[key].eng}</Text>
               </Pressable>
             ) : null
           )}
